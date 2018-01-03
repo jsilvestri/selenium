@@ -5,8 +5,12 @@ import static org.openqa.selenium.remote.server.scheduler.Host.Status.UP;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 
+import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.remote.server.SessionFactory;
+
 import java.util.Comparator;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 
@@ -38,6 +42,10 @@ public class Scheduler {
     }
 
     return this;
+  }
+
+  public Optional<SessionFactory> match(Capabilities capabilities) {
+    return Optional.empty();
   }
 
   @VisibleForTesting

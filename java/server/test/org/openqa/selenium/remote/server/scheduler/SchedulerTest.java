@@ -2,6 +2,7 @@ package org.openqa.selenium.remote.server.scheduler;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.DOWN;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.DRAINING;
@@ -11,9 +12,13 @@ import com.google.common.collect.ImmutableSet;
 
 import org.junit.Test;
 import org.mockito.Mockito;
+import org.openqa.selenium.firefox.FirefoxOptions;
+import org.openqa.selenium.remote.server.ActiveSessionFactory;
+import org.openqa.selenium.remote.server.SessionFactory;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Optional;
 import java.util.Set;
 
 public class SchedulerTest {
@@ -91,6 +96,20 @@ public class SchedulerTest {
     Scheduler scheduler = new Scheduler().addHost(up).addHost(down).addHost(draining);
 
     assertEquals(ImmutableSet.of(up), scheduler.getHosts());
+  }
+
+  @Test
+  public void itShouldBeFineIfThereAreNoMatchingSessionFactories() {
+    Host host = Host.builder().address("first").create().setStatus(UP);
+
+    Optional<SessionFactory> factory = new Scheduler()
+        .addHost(host)
+        .match(new FirefoxOptions());
+  }
+
+  @Test
+  public void canScheduleAJobIfThereIsAFactoryThatMatches() {
+    fail("Ouch");
   }
 
   private Host stubHost(float resourceUsage, long lastSessionCreated, String name) {

@@ -2,6 +2,8 @@ java_test(
     name = "scheduler",
     srcs = glob(["*Test.java"]),
     deps = [
+        "//java/client/src/org/openqa/selenium/firefox:firefox",
+        "//java/server/src/org/openqa/selenium/remote/server:webdriver-servlet",
         "//java/server/src/org/openqa/selenium/remote/server/scheduler:scheduler",
         "//third_party/java/guava:guava",
         "//third_party/java/junit:junit",
