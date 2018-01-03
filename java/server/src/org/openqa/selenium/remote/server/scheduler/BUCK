@@ -1,0 +1,10 @@
+java_library(
+    name = "scheduler",
+    srcs = glob(["*.java"]),
+    deps = [
+        "//third_party/java/guava:guava",
+    ],
+    visibility = [
+        "//java/server/test/org/openqa/selenium/remote/server/scheduler:scheduler",
+    ],
+)
