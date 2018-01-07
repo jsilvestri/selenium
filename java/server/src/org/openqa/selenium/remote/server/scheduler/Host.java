@@ -70,15 +70,12 @@ public class Host {
   }
 
   public Optional<SessionFactory> match(Capabilities capabilities) {
-    System.out.println("factories = " + factories.entrySet());
-
     return factories.entrySet().stream()
-        .peek(System.out::println)
         .filter(Map.Entry::getValue)
-        .map(Map.Entry::getKey)
-        .peek(System.out::println)
-        .filter(factory -> factory.isSupporting(capabilities))
-        .findFirst();
+        .filter(entry -> entry.getKey().isSupporting(capabilities))
+        .peek(entry -> entry.setValue(false))
+        .findFirst()
+        .map(Map.Entry::getKey);
   }
 
   public void release(SessionFactory factory) {

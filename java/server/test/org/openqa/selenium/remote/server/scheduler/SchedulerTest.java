@@ -3,6 +3,7 @@ package org.openqa.selenium.remote.server.scheduler;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.DOWN;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.DRAINING;
@@ -138,6 +139,26 @@ public class SchedulerTest {
         .match(new FirefoxOptions());
 
     assertEquals(sessionFactory, seen.get());
+  }
+
+  @Test
+  public void shouldNotScheduleAJobOnASessionFactoryThatIsAlreadyBeingUsed() {
+    SessionFactory sessionFactory =
+        new ServicedSession.Factory(caps -> true, GeckoDriverService.class.getName());
+
+    Host host = Host.builder()
+        .address("first")
+        .add(sessionFactory)
+        .create()
+        .setStatus(UP);
+
+    Scheduler scheduler = new Scheduler().addHost(host);
+
+    Optional<SessionFactory> seen = scheduler.match(new FirefoxOptions());
+    assertEquals(sessionFactory, seen.get());
+
+    seen = scheduler.match(new FirefoxOptions());
+    assertFalse(seen.isPresent());
   }
 
   private Host stubHost(float resourceUsage, long lastSessionCreated, String name) {
