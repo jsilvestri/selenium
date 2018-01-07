@@ -1,8 +1,8 @@
 package org.openqa.selenium.remote.server.scheduler;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.DOWN;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.DRAINING;
@@ -13,13 +13,15 @@ import com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.openqa.selenium.firefox.FirefoxOptions;
-import org.openqa.selenium.remote.server.ActiveSessionFactory;
+import org.openqa.selenium.firefox.GeckoDriverService;
+import org.openqa.selenium.remote.server.ServicedSession;
 import org.openqa.selenium.remote.server.SessionFactory;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class SchedulerTest {
 
@@ -34,14 +36,14 @@ public class SchedulerTest {
         .addHost(first)
         .addHost(second);
 
-    Set<Host> allHosts = scheduler.getHosts();
+    Set<Host> allHosts = scheduler.getHosts().collect(Collectors.toSet());
     assertEquals(2, allHosts.size());
     assertTrue(allHosts.contains(first));
     assertTrue(allHosts.contains(second));
   }
 
   @Test
-  public void shouldListHostsWithLightestLoadedFirst() throws URISyntaxException {
+  public void shouldListHostsWithLightestLoadedFirst() {
     // Create enough hosts so that we avoid the scheduler returning hosts in:
     // * insertion order
     // * reverse insertion order
@@ -57,11 +59,13 @@ public class SchedulerTest {
         .addHost(third)
         .addHost(fourth);
 
-    assertEquals(ImmutableSet.of(second, fourth, third, first), scheduler.getHosts());
+    assertEquals(
+        ImmutableSet.of(second, fourth, third, first),
+        scheduler.getHosts().collect(ImmutableSet.toImmutableSet()));
   }
 
   @Test
-  public void shouldUseLastSessionCreatedTimeAsTieBreaker() throws URISyntaxException {
+  public void shouldUseLastSessionCreatedTimeAsTieBreaker() {
     Host first = stubHost(0, 80, "first");
     Host second = stubHost(0, 10, "second");
     Host third = stubHost(0, 30, "third");
@@ -73,11 +77,13 @@ public class SchedulerTest {
         .addHost(third)
         .addHost(fourth);
 
-    assertEquals(ImmutableSet.of(second, fourth, third, first), scheduler.getHosts());
+    assertEquals(
+        ImmutableSet.of(second, fourth, third, first),
+        scheduler.getHosts().collect(ImmutableSet.toImmutableSet()));
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void shouldForbidAddingIdenticalHostsToScheduler() throws URISyntaxException {
+  public void shouldForbidAddingIdenticalHostsToScheduler() {
     Host first = stubHost(0, 0, "first");
     Host second = stubHost(10, 0, "first");
 
@@ -85,7 +91,7 @@ public class SchedulerTest {
   }
 
   @Test
-  public void shouldIncludeHostsThatAreUpInHostList() throws URISyntaxException {
+  public void shouldIncludeHostsThatAreUpInHostList() {
     Host up = stubHost(0, 0, "up");
     up.setStatus(UP);
     Host down = stubHost(0, 0, "down");
@@ -95,21 +101,43 @@ public class SchedulerTest {
 
     Scheduler scheduler = new Scheduler().addHost(up).addHost(down).addHost(draining);
 
-    assertEquals(ImmutableSet.of(up), scheduler.getHosts());
+    assertEquals(ImmutableSet.of(up), scheduler.getHosts().collect(ImmutableSet.toImmutableSet()));
   }
 
   @Test
   public void itShouldBeFineIfThereAreNoMatchingSessionFactories() {
-    Host host = Host.builder().address("first").create().setStatus(UP);
+    SessionFactory sessionFactory =
+        new ServicedSession.Factory(caps -> false, GeckoDriverService.class.getName());
 
-    Optional<SessionFactory> factory = new Scheduler()
+    Host host = Host.builder()
+        .address("first")
+        .add(sessionFactory)
+        .create()
+        .setStatus(UP);
+
+    Optional<SessionFactory> seen = new Scheduler()
         .addHost(host)
         .match(new FirefoxOptions());
+
+    assertFalse(seen.isPresent());
   }
 
   @Test
   public void canScheduleAJobIfThereIsAFactoryThatMatches() {
-    fail("Ouch");
+    SessionFactory sessionFactory =
+        new ServicedSession.Factory(caps -> true, GeckoDriverService.class.getName());
+
+    Host host = Host.builder()
+        .address("first")
+        .add(sessionFactory)
+        .create()
+        .setStatus(UP);
+
+    Optional<SessionFactory> seen = new Scheduler()
+        .addHost(host)
+        .match(new FirefoxOptions());
+
+    assertEquals(sessionFactory, seen.get());
   }
 
   private Host stubHost(float resourceUsage, long lastSessionCreated, String name) {

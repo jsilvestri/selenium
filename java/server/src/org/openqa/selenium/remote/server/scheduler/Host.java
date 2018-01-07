@@ -1,17 +1,31 @@
 package org.openqa.selenium.remote.server.scheduler;
 
+import com.google.common.collect.ImmutableList;
+
+import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.remote.server.SessionFactory;
+
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Host {
 
   private final URI address;
+  private final Map<SessionFactory, Boolean> factories;
   private AtomicReference<Status> status = new AtomicReference<>(Status.DOWN);
 
-  private Host(URI address) {
+  private Host(
+      URI address,
+      ImmutableList<SessionFactory> factories) {
     this.address = address;
+
+    this.factories = new LinkedHashMap<>();
+    factories.forEach(factory -> this.factories.put(factory, true));
   }
 
   public static Builder builder() {
@@ -23,6 +37,7 @@ public class Host {
   }
 
   public float getResourceUsage() {
+
     return 0f;
   }
 
@@ -54,9 +69,27 @@ public class Host {
     return status.get();
   }
 
+  public Optional<SessionFactory> match(Capabilities capabilities) {
+    System.out.println("factories = " + factories.entrySet());
+
+    return factories.entrySet().stream()
+        .peek(System.out::println)
+        .filter(Map.Entry::getValue)
+        .map(Map.Entry::getKey)
+        .peek(System.out::println)
+        .filter(factory -> factory.isSupporting(capabilities))
+        .findFirst();
+  }
+
+  public void release(SessionFactory factory) {
+
+  }
+
   public static class Builder {
 
+    private final ImmutableList.Builder<SessionFactory> factories = ImmutableList.builder();
     private URI uri;
+
 
     private Builder() {
       // Only from the Host.builder()
@@ -77,8 +110,14 @@ public class Host {
       }
     }
 
+    public Builder add(SessionFactory sessionFactory) {
+      factories.add(sessionFactory);
+      return this;
+    }
+
+
     public Host create() {
-      return new Host(uri);
+      return new Host(uri, factories.build());
     }
   }
 

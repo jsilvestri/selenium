@@ -13,6 +13,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.stream.Stream;
 
 public class Scheduler {
 
@@ -45,15 +46,21 @@ public class Scheduler {
   }
 
   public Optional<SessionFactory> match(Capabilities capabilities) {
-    return Optional.empty();
+    Objects.requireNonNull(capabilities);
+
+    try (CloseableLock readLock = hostsLock.lockReadLock()) {
+      return getHosts()
+          .map(host -> host.match(capabilities))
+          .filter(Optional::isPresent)
+          .findFirst()
+          .orElse(Optional.empty());
+    }
   }
 
   @VisibleForTesting
-  ImmutableSet<Host> getHosts() {
+  Stream<Host> getHosts() {
     try (CloseableLock readLock = hostsLock.lockReadLock()) {
-      return hosts.stream()
-          .filter(host -> UP.equals(host.getStatus()))
-          .collect(ImmutableSet.toImmutableSet());
+      return hosts.stream().filter(host -> UP.equals(host.getStatus()));
     }
   }
 }
