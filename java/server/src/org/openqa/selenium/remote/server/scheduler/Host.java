@@ -40,7 +40,6 @@ public class Host {
   }
 
   public float getResourceUsage() {
-
     return 0f;
   }
 
@@ -124,6 +123,10 @@ public class Host {
 
     public Host create() {
       return new Host(uri, factories.build());
+    }
+
+    public Builder limitSessionCount(int max) {
+      return null;
     }
   }
 

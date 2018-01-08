@@ -4,7 +4,10 @@ import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.openqa.selenium.remote.Dialect.OSS;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.DOWN;
+
+import com.google.common.collect.ImmutableSet;
 
 import org.junit.Test;
 import org.openqa.selenium.SessionNotCreatedException;
@@ -29,11 +32,14 @@ public class SchedulerTest {
         .create();
 
     try {
-      scheduler.createSession(new FirefoxOptions());
+      scheduler.createSession(ImmutableSet.of(OSS), new FirefoxOptions());
       fail("Should not create a new session");
     } catch (SessionNotCreatedException ignored) {
       // This is expected.
     }
   }
+
+//  @Test
+//  public void shouldAllowASessionToBeScheduled
 
 }
