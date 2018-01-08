@@ -11,13 +11,16 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Represents a host machine that's capable of running selenium sessions. This class is not
+ * thread-safe.
+ */
 public class Host {
 
   private final URI address;
   private final Map<SessionFactory, Boolean> factories;
-  private AtomicReference<Status> status = new AtomicReference<>(Status.DOWN);
+  private volatile Status status = Status.DOWN;
 
   private Host(
       URI address,
@@ -47,7 +50,7 @@ public class Host {
 
   public Host setStatus(Status status) {
     Objects.requireNonNull(status);
-    this.status.set(status);
+    this.status = status;
     return this;
   }
 
@@ -66,7 +69,7 @@ public class Host {
   }
 
   public Status getStatus() {
-    return status.get();
+    return status;
   }
 
   public Optional<SessionFactory> match(Capabilities capabilities) {
@@ -80,6 +83,12 @@ public class Host {
 
   public void release(SessionFactory factory) {
 
+  }
+
+  public boolean isSupporting(Capabilities capabilities) {
+    return factories.keySet().stream()
+        .map(factory -> factory.isSupporting(capabilities))
+        .reduce(false, Boolean::logicalOr);
   }
 
   public static class Builder {

@@ -1,9 +1,9 @@
 package org.openqa.selenium.remote.server.scheduler;
 
+import static java.util.function.Predicate.isEqual;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.DOWN;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.DRAINING;
@@ -13,6 +13,8 @@ import com.google.common.collect.ImmutableSet;
 
 import org.junit.Test;
 import org.mockito.Mockito;
+import org.openqa.selenium.SessionNotCreatedException;
+import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.firefox.GeckoDriverService;
 import org.openqa.selenium.remote.server.ServicedSession;
@@ -24,7 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class SchedulerTest {
+public class DistributorTest {
 
   @Test
   public void shouldReturnAllHosts() throws URISyntaxException {
@@ -33,11 +35,11 @@ public class SchedulerTest {
     Host second = Host.builder().address(new URI("second")).create();
     second.setStatus(UP);
 
-    Scheduler scheduler = new Scheduler()
+    Distributor distributor = new Distributor()
         .addHost(first)
         .addHost(second);
 
-    Set<Host> allHosts = scheduler.getHosts().collect(Collectors.toSet());
+    Set<Host> allHosts = distributor.getHosts(isEqual(UP)).collect(Collectors.toSet());
     assertEquals(2, allHosts.size());
     assertTrue(allHosts.contains(first));
     assertTrue(allHosts.contains(second));
@@ -54,7 +56,7 @@ public class SchedulerTest {
     Host third = stubHost(30, 0, "third");
     Host fourth = stubHost(20, 0, "fourth");
 
-    Scheduler scheduler = new Scheduler()
+    Distributor distributor = new Distributor()
         .addHost(first)
         .addHost(second)
         .addHost(third)
@@ -62,7 +64,7 @@ public class SchedulerTest {
 
     assertEquals(
         ImmutableSet.of(second, fourth, third, first),
-        scheduler.getHosts().collect(ImmutableSet.toImmutableSet()));
+        distributor.getHosts(isEqual(UP)).collect(ImmutableSet.toImmutableSet()));
   }
 
   @Test
@@ -72,7 +74,7 @@ public class SchedulerTest {
     Host third = stubHost(0, 30, "third");
     Host fourth = stubHost(0, 20, "fourth");
 
-    Scheduler scheduler = new Scheduler()
+    Distributor distributor = new Distributor()
         .addHost(first)
         .addHost(second)
         .addHost(third)
@@ -80,7 +82,7 @@ public class SchedulerTest {
 
     assertEquals(
         ImmutableSet.of(second, fourth, third, first),
-        scheduler.getHosts().collect(ImmutableSet.toImmutableSet()));
+        distributor.getHosts(isEqual(UP)).collect(ImmutableSet.toImmutableSet()));
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -88,7 +90,7 @@ public class SchedulerTest {
     Host first = stubHost(0, 0, "first");
     Host second = stubHost(10, 0, "first");
 
-    new Scheduler().addHost(first).addHost(second);
+    new Distributor().addHost(first).addHost(second);
   }
 
   @Test
@@ -100,23 +102,25 @@ public class SchedulerTest {
     Host draining = stubHost(0, 0, "draining");
     draining.setStatus(DRAINING);
 
-    Scheduler scheduler = new Scheduler().addHost(up).addHost(down).addHost(draining);
+    Distributor distributor = new Distributor().addHost(up).addHost(down).addHost(draining);
 
-    assertEquals(ImmutableSet.of(up), scheduler.getHosts().collect(ImmutableSet.toImmutableSet()));
+    assertEquals(
+        ImmutableSet.of(up),
+        distributor.getHosts(isEqual(UP)).collect(ImmutableSet.toImmutableSet()));
   }
 
   @Test
-  public void itShouldBeFineIfThereAreNoMatchingSessionFactories() {
+  public void itShouldBeFineIfThereAreNoUpMatchingSessionFactories() {
     SessionFactory sessionFactory =
-        new ServicedSession.Factory(caps -> false, GeckoDriverService.class.getName());
+        new ServicedSession.Factory(caps -> true, GeckoDriverService.class.getName());
 
     Host host = Host.builder()
         .address("first")
         .add(sessionFactory)
         .create()
-        .setStatus(UP);
+        .setStatus(DOWN);
 
-    Optional<SessionFactory> seen = new Scheduler()
+    Optional<SessionFactory> seen = new Distributor()
         .addHost(host)
         .match(new FirefoxOptions());
 
@@ -134,7 +138,7 @@ public class SchedulerTest {
         .create()
         .setStatus(UP);
 
-    Optional<SessionFactory> seen = new Scheduler()
+    Optional<SessionFactory> seen = new Distributor()
         .addHost(host)
         .match(new FirefoxOptions());
 
@@ -152,13 +156,31 @@ public class SchedulerTest {
         .create()
         .setStatus(UP);
 
-    Scheduler scheduler = new Scheduler().addHost(host);
+    Distributor distributor = new Distributor().addHost(host);
 
-    Optional<SessionFactory> seen = scheduler.match(new FirefoxOptions());
+    Optional<SessionFactory> seen = distributor.match(new FirefoxOptions());
     assertEquals(sessionFactory, seen.get());
 
-    seen = scheduler.match(new FirefoxOptions());
+    seen = distributor.match(new FirefoxOptions());
     assertFalse(seen.isPresent());
+  }
+
+
+  @Test(expected = SessionNotCreatedException.class)
+  public void shouldThrowAnExceptionIfThereAreNoHostsThatSupportTheGivenSessionType() {
+    SessionFactory firefox = new ServicedSession.Factory(
+        caps -> "firefox".equals(caps.getBrowserName()),
+        GeckoDriverService.class.getName());
+
+    Host down = Host.builder()
+        .address("first")
+        .add(firefox)
+        .create()
+        .setStatus(DOWN);
+
+    Distributor distributor = new Distributor().addHost(down);
+
+    distributor.match(new EdgeOptions());
   }
 
   private Host stubHost(float resourceUsage, long lastSessionCreated, String name) {

@@ -1,11 +1,12 @@
 package org.openqa.selenium.remote.server.scheduler;
 
+import static java.util.function.Predicate.isEqual;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.UP;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableSet;
 
 import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.SessionNotCreatedException;
 import org.openqa.selenium.remote.server.SessionFactory;
 
 import java.util.Comparator;
@@ -13,19 +14,20 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-public class Scheduler {
+public class Distributor {
 
   private final CloseableReadWriteLock hostsLock = new CloseableReadWriteLock();
   private final Set<Host> hosts;
 
-  public Scheduler() {
+  public Distributor() {
     Comparator<Host> hostComparator = Comparator.comparing(Host::getResourceUsage).thenComparing(Host::getUri);
     this.hosts = new ConcurrentSkipListSet<>(hostComparator);
   }
 
-  public Scheduler addHost(Host host) {
+  public Distributor addHost(Host host) {
     Objects.requireNonNull(host, "Host must not be null");
 
     // Order of obtaining the locks is important --- a write lock can obtain a read lock, but a
@@ -49,18 +51,35 @@ public class Scheduler {
     Objects.requireNonNull(capabilities);
 
     try (CloseableLock readLock = hostsLock.lockReadLock()) {
-      return getHosts()
+      // Optimistic path
+      Optional<Optional<SessionFactory>> found = getHosts(isEqual(UP))
           .map(host -> host.match(capabilities))
           .filter(Optional::isPresent)
-          .findFirst()
-          .orElse(Optional.empty());
+          .findFirst();
+
+      if (found.isPresent()) {
+        return found.get();
+      }
+
+      // No match made. Do any hosts support the capability at all?
+      boolean anyPossibleHandlers = getHosts(host -> true)
+          .map(host -> host.isSupporting(capabilities))
+          .reduce(false, Boolean::logicalOr);
+
+      // Well, alright. Let something have another go at starting the session
+      if (anyPossibleHandlers) {
+        return Optional.empty();
+      }
+
+      throw new SessionNotCreatedException(
+          "No known hosts support these capabilities: " + capabilities);
     }
   }
 
   @VisibleForTesting
-  Stream<Host> getHosts() {
+  Stream<Host> getHosts(Predicate<Host.Status> condition) {
     try (CloseableLock readLock = hostsLock.lockReadLock()) {
-      return hosts.stream().filter(host -> UP.equals(host.getStatus()));
+      return hosts.stream().filter(host -> condition.test(host.getStatus()));
     }
   }
 }
