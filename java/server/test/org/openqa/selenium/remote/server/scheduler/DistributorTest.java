@@ -4,6 +4,7 @@ import static java.util.function.Predicate.isEqual;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.DOWN;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.DRAINING;
@@ -181,6 +182,31 @@ public class DistributorTest {
     Distributor distributor = new Distributor().addHost(down);
 
     distributor.match(new EdgeOptions());
+  }
+
+  @Test
+  public void shouldNotBeAbleToScheduleMoreSessionsThanAvailableCapacity() {
+    fail("Write me");
+  }
+
+  @Test
+  public void ifAHostGoesDownItShouldBeSkipped() {
+    fail("Write me");
+  }
+
+  @Test
+  public void shouldAHostGoDownAllAssociatedSessionsAreKilled() {
+    fail("Write me");
+  }
+
+  @Test
+  public void selfHealingRemoteHostsAreRegisteredOnceTheyAreOkay() {
+    fail("Write me");
+  }
+
+  @Test
+  public void shouldNotUseHostsThatAreDraining() {
+    fail("Write me");
   }
 
   private Host stubHost(float resourceUsage, long lastSessionCreated, String name) {

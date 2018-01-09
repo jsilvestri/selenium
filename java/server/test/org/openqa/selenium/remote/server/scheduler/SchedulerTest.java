@@ -18,6 +18,7 @@ import java.util.Optional;
 
 public class SchedulerTest {
 
+  // This is the original behvaiour from Grid. Try, and then fail.
   @Test
   public void byDefaultASchedulerDoesNotAttemptToRescheduleSessions() {
     SessionFactory factory = mock(SessionFactory.class);
@@ -39,7 +40,34 @@ public class SchedulerTest {
     }
   }
 
-//  @Test
-//  public void shouldAllowASessionToBeScheduled
+  @Test
+  public void attemptingToStartASessionWhichFailsMarksTheSessionFactoryAsAvailable() {
+    fail("Write me");
+  }
+
+  @Test
+  public void onceASessionStartsTheAssociatedSessionFactoryBecomesUnavailable() {
+    fail("Write me");
+  }
+
+  @Test
+  public void onceASessionStopsTheAssociatedSessionFactoryBecomesAvailable() {
+    fail("Write me");
+  }
+
+  @Test
+  public void shouldAllowATimedFallback() {
+    fail("Write me");
+  }
+
+  @Test
+  public void fallbackShouldAllowAHostToBeSkipped() {
+    fail("Write me");
+  }
+
+  @Test
+  public void fallbackHandlersCanUseAnEntirelyDifferentDistributor() {
+    fail("Write me");
+  }
 
 }
