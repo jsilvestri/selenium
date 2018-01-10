@@ -33,7 +33,7 @@ public class SchedulerTest {
         .create();
 
     try {
-      scheduler.createSession(ImmutableSet.of(OSS), new FirefoxOptions());
+//      scheduler.createSession(ImmutableSet.of(OSS), new FirefoxOptions());
       fail("Should not create a new session");
     } catch (SessionNotCreatedException ignored) {
       // This is expected.
