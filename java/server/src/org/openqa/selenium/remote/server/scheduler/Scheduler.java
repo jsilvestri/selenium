@@ -59,6 +59,13 @@ public class Scheduler {
     LOG.info(String.format("Started new scheduler with %d threads", coreCount));
   }
 
+  public void stop() {
+    delayedSessionExecutor.shutdownNow();
+    queueProcessor.shutdownNow();
+
+    requests.forEach(request -> request.setResult(Optional.empty()));
+  }
+
   public ActiveSession createSession(NewSessionPayload payload) {
     SessionRequest request = new SessionRequest(payload, retryDelay.iterator());
 
