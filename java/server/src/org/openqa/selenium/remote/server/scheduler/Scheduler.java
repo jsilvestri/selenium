@@ -5,7 +5,7 @@ import static java.util.logging.Level.SEVERE;
 import static java.util.logging.Level.WARNING;
 import static org.openqa.selenium.remote.server.scheduler.RetryDelays.immediately;
 
-import org.openqa.selenium.ImmutableCapabilities;
+import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.SessionNotCreatedException;
 import org.openqa.selenium.remote.Dialect;
 import org.openqa.selenium.remote.NewSessionPayload;
@@ -210,7 +210,7 @@ public class Scheduler {
       return payload;
     }
 
-    public Stream<ImmutableCapabilities> stream() throws IOException {
+    public Stream<Capabilities> stream() throws IOException {
       return payload.stream();
     }
   }
