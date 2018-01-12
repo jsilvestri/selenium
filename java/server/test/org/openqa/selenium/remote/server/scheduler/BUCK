@@ -4,6 +4,7 @@ java_test(
     deps = [
         "//java/client/src/org/openqa/selenium/edge:edge",
         "//java/client/src/org/openqa/selenium/firefox:firefox",
+        "//java/client/test/org/openqa/selenium/testing:assertions",
         "//java/server/src/org/openqa/selenium/remote/server:webdriver-servlet",
         "//java/server/src/org/openqa/selenium/remote/server/scheduler:scheduler",
         "//third_party/java/guava:guava",

@@ -6,7 +6,7 @@ import org.junit.Test;
 
 public class SchedulerTest {
 
-  // This is the original behvaiour from Grid. Try, and then fail.
+  // This is the original behaviour from Grid. Try, and then fail.
   @Test
   public void byDefaultASchedulerDoesNotAttemptToRescheduleSessions() {
     fail("Write me");
