@@ -78,4 +78,13 @@ public class DistributorTest {
   public void shouldNotUseHostsThatAreDraining() {
     fail("Write me");
   }
+
+  @Test
+  public void shouldPriotiseHostsWithTheMostSlotsAvailableForASessionType() {
+    // Consider the case where you have 1 Windows machine and 5 linux machines. All of these hosts
+    // can run Chrome and Firefox sessions, but only one can run Edge sessions. Ideally, the machine
+    // able to run Edge would be sorted last.
+
+    fail("Write me");
+  }
 }
