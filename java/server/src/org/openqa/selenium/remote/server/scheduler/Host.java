@@ -7,8 +7,7 @@ import org.openqa.selenium.remote.server.SessionFactory;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -19,7 +18,7 @@ import java.util.Optional;
 public class Host {
 
   private final URI address;
-  private final Map<SessionFactory, Boolean> factories;
+  private final List<ScheduledSessionFactory> factories;
   private volatile Status status = Status.DOWN;
 
   private Host(
@@ -27,8 +26,9 @@ public class Host {
       ImmutableList<SessionFactory> factories) {
     this.address = address;
 
-    this.factories = new LinkedHashMap<>();
-    factories.forEach(factory -> this.factories.put(factory, true));
+    this.factories = factories.stream()
+        .map(ScheduledSessionFactory::new)
+        .collect(ImmutableList.toImmutableList());
   }
 
   public static Builder builder() {
@@ -71,21 +71,15 @@ public class Host {
     return status;
   }
 
-  public Optional<SessionFactory> match(Capabilities capabilities) {
-    return factories.entrySet().stream()
-        .filter(Map.Entry::getValue)
-        .filter(entry -> entry.getKey().isSupporting(capabilities))
-        .peek(entry -> entry.setValue(false))
-        .findFirst()
-        .map(Map.Entry::getKey);
-  }
-
-  public void release(SessionFactory factory) {
-
+  Optional<ScheduledSessionFactory> match(Capabilities capabilities) {
+    return factories.stream()
+        .filter(factory -> factory.isSupporting(capabilities))
+        .filter(ScheduledSessionFactory::isAvailable)
+        .findFirst();
   }
 
   public boolean isSupporting(Capabilities capabilities) {
-    return factories.keySet().stream()
+    return factories.stream()
         .map(factory -> factory.isSupporting(capabilities))
         .reduce(false, Boolean::logicalOr);
   }
@@ -126,7 +120,7 @@ public class Host {
     }
 
     public Builder limitSessionCount(int max) {
-      return null;
+      return this;
     }
   }
 

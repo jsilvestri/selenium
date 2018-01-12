@@ -14,12 +14,10 @@ import java.util.Map;
 
 class ScheduledSession implements ActiveSession {
 
-  private final Host host;
-  private final SessionFactory parent;
+  private final ScheduledSessionFactory parent;
   private final ActiveSession delegate;
 
-  ScheduledSession(Host host, SessionFactory parent, ActiveSession delegate) {
-    this.host = host;
+  ScheduledSession(ScheduledSessionFactory parent, ActiveSession delegate) {
     this.parent = parent;
     this.delegate = delegate;
   }
@@ -54,7 +52,7 @@ class ScheduledSession implements ActiveSession {
     try {
       delegate.stop();
     } finally {
-      host.release(parent);
+      parent.setAvailable(true);
     }
   }
 

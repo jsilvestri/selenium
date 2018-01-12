@@ -7,15 +7,19 @@ import org.openqa.selenium.remote.server.SessionFactory;
 
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 class ScheduledSessionFactory implements SessionFactory {
 
-  private final Host host;
-  private final SessionFactory delegate;
+  private final static Logger LOG = Logger.getLogger(ScheduledSessionFactory.class.getName());
 
-  ScheduledSessionFactory(Host host, SessionFactory delegate) {
-    this.host = host;
+  private final SessionFactory delegate;
+  private volatile boolean available;
+
+  ScheduledSessionFactory(SessionFactory delegate) {
     this.delegate = delegate;
+    this.available = true;
   }
 
   @Override
@@ -23,16 +27,32 @@ class ScheduledSessionFactory implements SessionFactory {
     return delegate.isSupporting(capabilities);
   }
 
+  public boolean isAvailable() {
+    return available;
+  }
+
+  public void setAvailable(boolean available) {
+    this.available = available;
+  }
+
   @Override
   public Optional<ActiveSession> apply(
       Set<Dialect> downstreamDialects,
       Capabilities capabilities) {
-    Optional<ActiveSession> created = delegate.apply(downstreamDialects, capabilities);
-    if (!created.isPresent()) {
-      host.release(delegate);
-      return created;
-    }
+    setAvailable(false);
+    try {
+      Optional<ActiveSession> created = delegate.apply(downstreamDialects, capabilities);
+      if (!created.isPresent()) {
+        setAvailable(true);
+        return created;
+      }
 
-    return Optional.of(new ScheduledSession(host, delegate, created.get()));
+      return Optional.of(new ScheduledSession(this, created.get()));
+    } catch (Throwable t) {
+      // Mark ourselves available if something goes wrong
+      LOG.log(Level.WARNING, t.getMessage(), t);
+      setAvailable(true);
+      throw t;
+    }
   }
 }

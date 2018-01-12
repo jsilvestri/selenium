@@ -121,7 +121,7 @@ public class DistributorTest {
         .create()
         .setStatus(DOWN);
 
-    Optional<SessionFactory> seen = new Distributor()
+    Optional<ScheduledSessionFactory> seen = new Distributor()
         .addHost(host)
         .match(new FirefoxOptions());
 
@@ -139,7 +139,7 @@ public class DistributorTest {
         .create()
         .setStatus(UP);
 
-    Optional<SessionFactory> seen = new Distributor()
+    Optional<ScheduledSessionFactory> seen = new Distributor()
         .addHost(host)
         .match(new FirefoxOptions());
 
@@ -159,7 +159,7 @@ public class DistributorTest {
 
     Distributor distributor = new Distributor().addHost(host);
 
-    Optional<SessionFactory> seen = distributor.match(new FirefoxOptions());
+    Optional<ScheduledSessionFactory> seen = distributor.match(new FirefoxOptions());
     assertEquals(sessionFactory, seen.get());
 
     seen = distributor.match(new FirefoxOptions());

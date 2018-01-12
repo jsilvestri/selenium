@@ -7,7 +7,6 @@ import com.google.common.annotations.VisibleForTesting;
 
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.SessionNotCreatedException;
-import org.openqa.selenium.remote.server.SessionFactory;
 
 import java.util.Comparator;
 import java.util.Objects;
@@ -47,18 +46,19 @@ public class Distributor {
     return this;
   }
 
-  public Optional<SessionFactory> match(Capabilities capabilities) {
+  public Optional<ScheduledSessionFactory> match(Capabilities capabilities) {
     Objects.requireNonNull(capabilities);
 
     try (CloseableLock readLock = hostsLock.lockReadLock()) {
       // Optimistic path
-      Optional<Optional<SessionFactory>> found = getHosts(isEqual(UP))
+      Optional<ScheduledSessionFactory> found = getHosts(isEqual(UP))
           .map(host -> host.match(capabilities))
           .filter(Optional::isPresent)
-          .findFirst();
+          .findFirst()
+          .orElse(Optional.empty());
 
       if (found.isPresent()) {
-        return found.get();
+        return found;
       }
 
       // No match made. Do any hosts support the capability at all?
