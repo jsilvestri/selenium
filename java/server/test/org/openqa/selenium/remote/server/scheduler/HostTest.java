@@ -6,15 +6,10 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.openqa.selenium.testing.Assertions.assertException;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.openqa.selenium.remote.server.SessionFactory;
 
 public class HostTest {
-
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
 
   @Test
   public void hostsMustHaveAName() {

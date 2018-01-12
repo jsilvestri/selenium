@@ -1,5 +1,7 @@
 package org.openqa.selenium.remote.server.scheduler;
 
+import static org.openqa.selenium.remote.server.scheduler.Host.Status.UP;
+
 import com.google.common.collect.ImmutableList;
 
 import org.openqa.selenium.remote.server.SessionFactory;
@@ -11,9 +13,13 @@ public class Host {
   private final String name;
   private final ImmutableList<ScheduledSessionFactory> factories;
 
+  private volatile Status status;
+
   private Host(String name, ImmutableList<ScheduledSessionFactory> factories) {
     this.name = Objects.requireNonNull(name, "Name must be set");
     this.factories = Objects.requireNonNull(factories, "No session factories at all");
+
+    this.status = UP;
   }
 
   public static Builder builder() {
@@ -22,6 +28,15 @@ public class Host {
 
   public String getName() {
     return name;
+  }
+
+  public Status getStatus() {
+    return status;
+  }
+
+  public Host setStatus(Status status) {
+    this.status = Objects.requireNonNull(status, "Status must be set");
+    return this;
   }
 
   public static class Builder {
@@ -48,4 +63,9 @@ public class Host {
     }
   }
 
+  public enum Status {
+    UP,
+    DRAINING,
+    DOWN;
+  }
 }
