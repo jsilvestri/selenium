@@ -4,9 +4,11 @@ import static org.openqa.selenium.remote.server.scheduler.Host.Status.UP;
 
 import com.google.common.collect.ImmutableList;
 
+import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.remote.server.SessionFactory;
 
 import java.util.Objects;
+import java.util.Optional;
 
 public class Host {
 
@@ -37,6 +39,17 @@ public class Host {
   public Host setStatus(Status status) {
     this.status = Objects.requireNonNull(status, "Status must be set");
     return this;
+  }
+
+  public boolean isSupporting(Capabilities caps) {
+    return false;
+  }
+
+  public Optional<SessionFactoryAndCapabilities> match(Capabilities caps) {
+    return factories.stream()
+        .filter(factory -> factory.isSupporting(caps))
+        .map(factory -> new SessionFactoryAndCapabilities(factory, caps))
+        .findFirst();
   }
 
   public static class Builder {
