@@ -14,21 +14,35 @@ import java.util.stream.Stream;
 public class Distributor {
 
   private final List<Host> hosts;
+  // Prefer the lightest loaded, most idle hosts by default.
   private final Comparator<Host> weightingAlgorithm =
-      Comparator.comparing(Host::getRemainingCapacity).thenComparing(Host::getLastSessionCreated).thenComparing(Host::getName);
+      Comparator.comparing(Host::getRemainingCapacity)
+          .thenComparing((l, r) -> ((Long) (r.getLastSessionCreated() - l.getLastSessionCreated())).intValue())
+          .thenComparing(Host::getName);
 
   public Distributor() {
     this.hosts = new CopyOnWriteArrayList<>();
   }
 
   public Distributor add(Host host) {
-    hosts.add(Objects.requireNonNull(host, "Host cannot be null"));
+    Objects.requireNonNull(host, "Host cannot be null");
+    boolean exists = hosts.stream()
+        .map(h -> h.getName().equals(host.getName()))
+        .reduce(false, Boolean::logicalOr);
+
+    if (exists) {
+      throw new IllegalArgumentException(
+          "A host with the same name has already been added: " + host.getName());
+    }
+
+    hosts.add(host);
+
     return this;
   }
 
   public Stream<SessionFactoryAndCapabilities> match(Capabilities caps) {
     return getHosts()
-//        .filter(host -> host.getStatus() == Host.Status.UP)
+        .filter(host -> host.getStatus() == Host.Status.UP)
         .map(host -> host.match(caps))
         .filter(Optional::isPresent)
         .map(Optional::get);
