@@ -12,6 +12,8 @@ import java.util.Set;
 class ScheduledSessionFactory implements SessionFactory {
 
   private final SessionFactory delegate;
+  private volatile boolean available = true;
+  private volatile long lastUsed = 0;
 
   ScheduledSessionFactory(SessionFactory delegate) {
     this.delegate = Objects.requireNonNull(delegate, "Actual session factory cannot be null");
@@ -25,5 +27,13 @@ class ScheduledSessionFactory implements SessionFactory {
   @Override
   public Optional<ActiveSession> apply(Set<Dialect> downstreamDialects, Capabilities capabilities) {
     return delegate.apply(downstreamDialects, capabilities);
+  }
+
+  public boolean isAvailable() {
+    return available;
+  }
+
+  public long getLastSessionCreated() {
+    return lastUsed;
   }
 }

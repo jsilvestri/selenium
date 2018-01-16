@@ -29,11 +29,11 @@ public class Scheduler {
     try {
       NewSessionRequest request = new NewSessionRequest(payload);
 
-      request.stream()
-          .map(distributor::match)
-          .filter(Optional::isPresent)
-          .map(Optional::get)
-          .findFirst();
+//      request.stream()
+//          .map(distributor::match)
+//          .filter(Optional::isPresent)
+//          .map(Optional::get)
+//          .findFirst();
 
       return null;
     } catch (SessionNotCreatedException e) {

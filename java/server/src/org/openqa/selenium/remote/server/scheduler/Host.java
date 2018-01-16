@@ -17,9 +17,16 @@ public class Host {
 
   private volatile Status status;
 
-  private Host(String name, ImmutableList<ScheduledSessionFactory> factories) {
+  private Host(String name, ImmutableList<SessionFactory> factories) {
     this.name = Objects.requireNonNull(name, "Name must be set");
-    this.factories = Objects.requireNonNull(factories, "No session factories at all");
+    this.factories = factories.stream()
+      .map(factory -> {
+        if (factory instanceof ScheduledSessionFactory) {
+          return (ScheduledSessionFactory) factory;
+        }
+        return new ScheduledSessionFactory(factory);
+      })
+    .collect(ImmutableList.toImmutableList());
 
     this.status = UP;
   }
@@ -42,7 +49,21 @@ public class Host {
   }
 
   public boolean isSupporting(Capabilities caps) {
-    return false;
+    return factories.stream()
+        .map(factory -> factory.isSupporting(caps))
+        .reduce(false, Boolean::logicalOr);
+  }
+
+  // This should probably be a percentage
+  public int getRemainingCapacity() {
+    if (factories.isEmpty()) {
+      return 0;
+    }
+
+    int size = factories.size();
+    long free = factories.stream().filter(ScheduledSessionFactory::isAvailable).count();
+
+    return Math.round((free / size) * 100);
   }
 
   public Optional<SessionFactoryAndCapabilities> match(Capabilities caps) {
@@ -52,10 +73,17 @@ public class Host {
         .findFirst();
   }
 
+  public long getLastSessionCreated() {
+    return factories.stream()
+        .map(ScheduledSessionFactory::getLastSessionCreated)
+        .reduce(Math::max)
+        .orElse(0L);
+  }
+
   public static class Builder {
 
     private String name;
-    private ImmutableList.Builder<ScheduledSessionFactory> factories;
+    private ImmutableList.Builder<SessionFactory> factories;
 
     private Builder() {
       this.factories = ImmutableList.builder();
@@ -67,7 +95,7 @@ public class Host {
     }
 
     public Builder add(SessionFactory factory) {
-      factories.add(new ScheduledSessionFactory(factory));
+      factories.add(Objects.requireNonNull(factory, "Session factory cannot be null"));
       return this;
     }
 
@@ -79,6 +107,6 @@ public class Host {
   public enum Status {
     UP,
     DRAINING,
-    DOWN;
+    DOWN
   }
 }

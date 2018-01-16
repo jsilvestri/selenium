@@ -8,16 +8,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.openqa.selenium.testing.Assertions.assertException;
-import static org.openqa.selenium.testing.TestUtilities.catchThrowable;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.openqa.selenium.SessionNotCreatedException;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.remote.NewSessionPayload;
 import org.openqa.selenium.remote.server.SessionFactory;
-import org.openqa.selenium.testing.Assertions;
 
 import java.io.IOException;
 import java.util.Optional;
