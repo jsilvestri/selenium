@@ -35,7 +35,7 @@ module Selenium
         def error
           klass = Error.for_code(status) || return
 
-          ex = klass.new(error_message)
+          ex = klass.new(error_message + "; #{status}")
           ex.set_backtrace(caller)
           add_backtrace ex
 
@@ -66,6 +66,7 @@ module Selenium
         private
 
         def assert_ok
+          raise "Got error #{e.try(:error_message)}; #{@code}"
           e = error
           raise e if e
           return unless @code.nil? || @code >= 400
