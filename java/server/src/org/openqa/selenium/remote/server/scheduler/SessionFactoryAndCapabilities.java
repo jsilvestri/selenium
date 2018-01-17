@@ -19,7 +19,7 @@ class SessionFactoryAndCapabilities {
 
   public ActiveSession newSession(Set<Dialect> downstreamDialects) {
     return factory.apply(downstreamDialects, capabilities)
-        .map(session -> new ScheduledSession(factory, session))
-        .orElseThrow(() -> new SessionNotCreatedException("Unable to create session for " + capabilities));
+        .orElseThrow(
+            () -> new SessionNotCreatedException("Unable to create session for " + capabilities));
   }
 }

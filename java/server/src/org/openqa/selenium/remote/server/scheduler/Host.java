@@ -14,11 +14,14 @@ public class Host {
 
   private final String name;
   private final ImmutableList<ScheduledSessionFactory> factories;
+  private final int maxConcurrentSessions;
 
   private volatile Status status;
 
-  private Host(String name, ImmutableList<SessionFactory> factories) {
+  private Host(String name, ImmutableList<SessionFactory> factories, int maxConcurrentSessions) {
     this.name = Objects.requireNonNull(name, "Name must be set");
+    this.maxConcurrentSessions = maxConcurrentSessions;
+
     this.factories = factories.stream()
       .map(factory -> {
         if (factory instanceof ScheduledSessionFactory) {
@@ -67,11 +70,21 @@ public class Host {
   }
 
   public Optional<SessionFactoryAndCapabilities> match(Capabilities caps) {
+    if (getSessionCount() >= maxConcurrentSessions) {
+      return Optional.empty();
+    }
+
     return factories.stream()
         .filter(factory -> factory.isSupporting(caps))
         .filter(ScheduledSessionFactory::isAvailable)
         .map(factory -> new SessionFactoryAndCapabilities(factory, caps))
         .findFirst();
+  }
+
+  public long getSessionCount() {
+    return factories.stream()
+        .filter(factory -> !factory.isAvailable())
+        .count();
   }
 
   public long getLastSessionCreated() {
@@ -85,6 +98,7 @@ public class Host {
 
     private String name;
     private ImmutableList.Builder<SessionFactory> factories;
+    private int maxSessions = Integer.MAX_VALUE;
 
     private Builder() {
       this.factories = ImmutableList.builder();
@@ -101,7 +115,16 @@ public class Host {
     }
 
     public Host create() {
-      return new Host(name, factories.build());
+      return new Host(name, factories.build(), maxSessions);
+    }
+
+    public Builder maxSessions(int maxSessionCount) {
+      if (maxSessionCount < 1) {
+        throw new IllegalArgumentException(
+            "Maximum session count must allow at least one session: " + maxSessionCount);
+      }
+      this.maxSessions = maxSessionCount;
+      return this;
     }
   }
 

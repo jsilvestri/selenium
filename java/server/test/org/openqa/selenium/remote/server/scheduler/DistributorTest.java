@@ -18,7 +18,6 @@ import com.google.common.collect.Iterators;
 
 import org.junit.Test;
 import org.openqa.selenium.Capabilities;
-import org.openqa.selenium.SessionNotCreatedException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxOptions;
@@ -34,6 +33,8 @@ import org.openqa.selenium.remote.server.ActiveSessionCommandExecutor;
 import org.openqa.selenium.remote.server.ServicedSession;
 import org.openqa.selenium.remote.server.SessionFactory;
 import org.openqa.selenium.testing.Assertions;
+
+import sun.jvm.hotspot.utilities.AssertionFailure;
 
 import java.util.List;
 import java.util.Map;
@@ -179,21 +180,51 @@ public class DistributorTest {
         .findFirst()
         .orElseThrow(() -> new AssertionError("Unable to create session"));
 
-
     ActiveSession session = match.newSession(ImmutableSet.of(OSS));
     assertEquals(0, host.getRemainingCapacity());
     session.stop();
     assertEquals(100, host.getRemainingCapacity());
   }
 
-  @Test(expected = SessionNotCreatedException.class)
-  public void shouldThrowAnExceptionIfThereAreNoHostsThatSupportTheGivenSessionType() {
-    fail("Write me");
+  @Test
+  public void shouldGiveAnEmptyThereAreNoHostsThatSupportTheGivenSessionType() {
+    SessionFactory factory = new FakeSessionFactory(caps -> "chrome".equals(caps.getBrowserName()));
+    Host host = Host.builder().name("localhost").add(factory).create();
+
+    Distributor distributor = new Distributor().add(host);
+
+    List<SessionFactoryAndCapabilities> matches = distributor.match(new FirefoxOptions())
+        .collect(Collectors.toList());
+
+    assertTrue(matches.toString(), matches.isEmpty());
   }
 
   @Test
   public void shouldNotBeAbleToScheduleMoreSessionsThanAvailableCapacity() {
-    fail("Write me");
+    // There are two session factories added, but we limit the host to only running 1 session at
+    // most.
+
+    // The factory gets wrapped and the delegate is stateless. This is fine to do.
+    SessionFactory factory = new FakeSessionFactory(caps -> "chrome".equals(caps.getBrowserName()));
+    Host host = Host.builder()
+        .name("localhost")
+        .add(factory)
+        .add(factory)
+        .maxSessions(1)
+        .create();
+
+    Distributor distributor = new Distributor().add(host);
+
+    // Start the first session. We can ignore it safely since all we want to do is use up the
+    // capacity of the host
+    distributor.match(new ChromeOptions())
+        .findFirst()
+        .map(match -> match.newSession(ImmutableSet.of(OSS)))
+        .orElseThrow(() -> new AssertionFailure("New session should have been created."));
+
+    // We now expect the stream of matches to be empty, since the host has no additional capacity
+    long count = distributor.match(new ChromeOptions()).count();
+    assertEquals(0, count);
   }
 
   @Test
@@ -219,12 +250,7 @@ public class DistributorTest {
 
     fail("Write me");
   }
-
-  @Test
-  public void shouldReturnAStreamWithAllMatchingSessionFactories() {
-    fail("Write me");
-  }
-
+  
   private static class FakeSessionFactory implements SessionFactory {
 
     private final Predicate<Capabilities> predicate;
