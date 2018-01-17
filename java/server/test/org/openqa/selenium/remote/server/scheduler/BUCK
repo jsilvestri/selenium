@@ -1,7 +1,18 @@
+java_library(
+    name = "test-lib",
+    srcs = glob(["*.java"], excludes = ["*Test.java"]),
+    deps = [
+        "//java/client/src/org/openqa/selenium/remote:remote",
+        "//java/server/src/org/openqa/selenium/remote/server:webdriver-servlet",
+        "//third_party/java/guava:guava",
+    ],
+)
+
 java_test(
     name = "scheduler",
     srcs = glob(["*Test.java"]),
     deps = [
+        ":test-lib",
         "//java/client/src/org/openqa/selenium/chrome:chrome",
         "//java/client/src/org/openqa/selenium/edge:edge",
         "//java/client/src/org/openqa/selenium/firefox:firefox",

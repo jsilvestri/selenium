@@ -106,7 +106,7 @@ java_library(
     "//java/server/test/org/openqa/selenium:lib",
     '//java/server/test/org/openqa/selenium/remote/server:tests',
     "//java/server/test/org/openqa/selenium/remote/server/auth:lib",
-    "//java/server/test/org/openqa/selenium/remote/server/scheduler:scheduler",
+    "//java/server/test/org/openqa/selenium/remote/server/scheduler:",
   ],
 )
 

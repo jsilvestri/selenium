@@ -1,7 +1,6 @@
 package org.openqa.selenium.remote.server.scheduler;
 
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -9,44 +8,19 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.openqa.selenium.testing.Assertions.assertException;
 
+import com.google.common.collect.ImmutableSet;
+
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.openqa.selenium.SessionNotCreatedException;
 import org.openqa.selenium.firefox.FirefoxOptions;
-import org.openqa.selenium.firefox.GeckoDriverService;
 import org.openqa.selenium.remote.NewSessionPayload;
-import org.openqa.selenium.remote.server.ActiveSession;
-import org.openqa.selenium.remote.server.ServicedSession;
 import org.openqa.selenium.remote.server.SessionFactory;
 
 import java.io.IOException;
 import java.util.Optional;
 
 public class SchedulerTest {
-
-  @Test
-  public void bootstrap() throws IOException {
-    Scheduler.Builder builder = Scheduler.builder();
-
-    assertException(
-        builder::create,
-        e -> assertTrue(e.getMessage(), e.getMessage().toLowerCase().contains("distributor")));
-
-    SessionFactory factory = new ServicedSession.Factory(
-        caps -> "firefox".equals(caps.getBrowserName()),
-        GeckoDriverService.class.getName());
-    Host host = Host.builder().name("localhost").add(factory).create();
-
-    Distributor distributor = new Distributor().add(host);
-
-    builder.distributeUsing(distributor);
-    Scheduler scheduler = builder.create();
-
-    try (NewSessionPayload payload = NewSessionPayload.create(new FirefoxOptions())) {
-      ActiveSession session = scheduler.createSession(payload);
-      session.stop();
-    }
-  }
 
   // This is the original behaviour from Grid. Try, and then fail.
   @Test
@@ -76,13 +50,52 @@ public class SchedulerTest {
   }
 
   @Test
-  public void callingQuitOnTheWrappedDriverShouldQuitTheSessionAndMakeTheFactoryAvailable() {
-    fail("Write me");
+  public void shouldAllowATimedFallback() throws IOException {
+    SessionFactory factory = mock(SessionFactory.class);
+    when(factory.isSupporting(any())).thenReturn(true);
+    // Fail the first call, succeed on the second
+    when(factory.apply(any(), any()))
+        .thenReturn(
+            Optional.empty(),
+            Optional.of(new FakeActiveSession(ImmutableSet.of(), new FirefoxOptions())));
+
+    Distributor distributor = new Distributor()
+        .add(Host.builder().name("localhost").add(factory).create());
+
+    Scheduler scheduler = Scheduler.builder()
+        .distributeUsing(distributor)
+        .retrySchedule(RetryDelays.immediately())
+        .create();
+
+    try (NewSessionPayload payload = NewSessionPayload.create(new FirefoxOptions())) {
+      scheduler.createSession(payload);
+    }
+
+    verify(factory, times(2)).apply(any(), any());
   }
 
   @Test
-  public void shouldAllowATimedFallback() {
-    fail("Write me");
-  }
+  public void shouldAllowFlakySessionRestartsWithoutNeedingTimeout() throws IOException {
+    SessionFactory factory = mock(SessionFactory.class);
+    when(factory.isSupporting(any())).thenReturn(true);
+    // Fail the first call, succeed on the second
+    when(factory.apply(any(), any()))
+        .thenReturn(
+            Optional.empty(),
+            Optional.of(new FakeActiveSession(ImmutableSet.of(), new FirefoxOptions())));
 
+    Distributor distributor = new Distributor()
+        .add(Host.builder().name("localhost").add(factory).create());
+
+    Scheduler scheduler = Scheduler.builder()
+        .distributeUsing(distributor)
+        .retryFlakyStarts(2)
+        .create();
+
+    try (NewSessionPayload payload = NewSessionPayload.create(new FirefoxOptions())) {
+      scheduler.createSession(payload);
+    }
+
+    verify(factory);
+  }
 }

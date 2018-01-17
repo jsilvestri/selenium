@@ -25,6 +25,10 @@ class SessionFactoryAndCapabilities {
     this.capabilities = capabilities;
   }
 
+  public ScheduledSessionFactory getSessionFactory() {
+    return factory;
+  }
+
   public Optional<ActiveSession> newSession(Set<Dialect> downstreamDialects) {
     try {
       return factory.apply(downstreamDialects, capabilities);

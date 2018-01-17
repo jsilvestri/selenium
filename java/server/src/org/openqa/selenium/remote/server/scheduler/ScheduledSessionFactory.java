@@ -42,8 +42,30 @@ class ScheduledSessionFactory implements SessionFactory {
     return available;
   }
 
+  void setAvailable(boolean isAvailable) {
+    this.available = isAvailable;
+  }
+
   public long getLastSessionCreated() {
     return lastUsed;
+  }
+
+  /**
+   * Equality is based on the underlying {@link SessionFactory} and nothing else.
+   */
+  @Override
+  public boolean equals(Object o) {
+    if (!(o instanceof ScheduledSessionFactory)) {
+      return false;
+    }
+
+    ScheduledSessionFactory that = (ScheduledSessionFactory) o;
+    return Objects.equals(this.delegate, that.delegate);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(delegate);
   }
 
   private class ScheduledSession implements ActiveSession {
