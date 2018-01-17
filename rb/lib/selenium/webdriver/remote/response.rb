@@ -66,7 +66,7 @@ module Selenium
         private
 
         def assert_ok
-          raise "Got error #{e.try(:error_message)}; #{@code}"
+          raise "Got error #{error.try(:error_message)}; #{@code}"
           e = error
           raise e if e
           return unless @code.nil? || @code >= 400
