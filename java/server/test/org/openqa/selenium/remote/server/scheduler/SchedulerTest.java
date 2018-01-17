@@ -76,21 +76,6 @@ public class SchedulerTest {
   }
 
   @Test
-  public void attemptingToStartASessionWhichFailsMarksTheSessionFactoryAsAvailable() {
-    fail("Write me");
-  }
-
-  @Test
-  public void onceASessionStartsTheAssociatedSessionFactoryBecomesUnavailable() {
-    fail("Write me");
-  }
-
-  @Test
-  public void onceASessionStopsTheAssociatedSessionFactoryBecomesAvailable() {
-    fail("Write me");
-  }
-
-  @Test
   public void callingQuitOnTheWrappedDriverShouldQuitTheSessionAndMakeTheFactoryAvailable() {
     fail("Write me");
   }

@@ -1,10 +1,11 @@
 package org.openqa.selenium.remote.server.scheduler;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.openqa.selenium.remote.Dialect.OSS;
@@ -33,8 +34,6 @@ import org.openqa.selenium.remote.server.ActiveSessionCommandExecutor;
 import org.openqa.selenium.remote.server.ServicedSession;
 import org.openqa.selenium.remote.server.SessionFactory;
 import org.openqa.selenium.testing.Assertions;
-
-import sun.jvm.hotspot.utilities.AssertionFailure;
 
 import java.util.List;
 import java.util.Map;
@@ -142,9 +141,9 @@ public class DistributorTest {
         .orElseThrow(() -> new AssertionError("Unable to create session"));
 
     // We don't actually care about the session
-    ActiveSession activeSession = match.newSession(ImmutableSet.of(OSS));
+    Optional<ActiveSession> activeSession = match.newSession(ImmutableSet.of(OSS));
 
-    assertNotNull(activeSession);
+    assertTrue(activeSession.isPresent());
     assertEquals(0, host.getRemainingCapacity());
   }
 
@@ -180,9 +179,9 @@ public class DistributorTest {
         .findFirst()
         .orElseThrow(() -> new AssertionError("Unable to create session"));
 
-    ActiveSession session = match.newSession(ImmutableSet.of(OSS));
+    Optional<ActiveSession> session = match.newSession(ImmutableSet.of(OSS));
     assertEquals(0, host.getRemainingCapacity());
-    session.stop();
+    session.get().stop();
     assertEquals(100, host.getRemainingCapacity());
   }
 
@@ -220,11 +219,31 @@ public class DistributorTest {
     distributor.match(new ChromeOptions())
         .findFirst()
         .map(match -> match.newSession(ImmutableSet.of(OSS)))
-        .orElseThrow(() -> new AssertionFailure("New session should have been created."));
+        .orElseThrow(() -> new AssertionError("New session should have been created."));
 
     // We now expect the stream of matches to be empty, since the host has no additional capacity
     long count = distributor.match(new ChromeOptions()).count();
     assertEquals(0, count);
+  }
+
+  @Test
+  public void attemptingToStartASessionWhichFailsMarksTheSessionFactoryAsAvailable() {
+    SessionFactory delegate = mock(SessionFactory.class);
+    // We want to throw an exception that shouldn't happen to ensure edge cases are okay
+    when(delegate.apply(any(), any())).thenThrow(new IllegalArgumentException("Ouch"));
+    when(delegate.isSupporting(any())).thenReturn(true);
+    SessionFactory factory = new ScheduledSessionFactory(delegate);
+
+    Distributor distributor = new Distributor()
+        .add(Host.builder().name("localhost").add(factory).create());
+
+    List<SessionFactoryAndCapabilities> matches =
+        distributor.match(new FirefoxOptions()).collect(Collectors.toList());
+
+    assertEquals(1, matches.size());
+
+    Optional<ActiveSession> session = matches.get(0).newSession(ImmutableSet.of(OSS));
+    assertFalse(session.isPresent());
   }
 
   @Test
@@ -250,7 +269,7 @@ public class DistributorTest {
 
     fail("Write me");
   }
-  
+
   private static class FakeSessionFactory implements SessionFactory {
 
     private final Predicate<Capabilities> predicate;
