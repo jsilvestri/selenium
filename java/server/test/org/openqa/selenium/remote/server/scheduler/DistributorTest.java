@@ -1,25 +1,46 @@
 package org.openqa.selenium.remote.server.scheduler;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import static org.openqa.selenium.remote.Dialect.OSS;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.DOWN;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.DRAINING;
 import static org.openqa.selenium.remote.server.scheduler.Host.Status.UP;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterators;
 
 import org.junit.Test;
+import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.SessionNotCreatedException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.firefox.GeckoDriverService;
+import org.openqa.selenium.io.TemporaryFilesystem;
+import org.openqa.selenium.remote.Dialect;
+import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.SessionId;
+import org.openqa.selenium.remote.http.HttpRequest;
+import org.openqa.selenium.remote.http.HttpResponse;
+import org.openqa.selenium.remote.server.ActiveSession;
+import org.openqa.selenium.remote.server.ActiveSessionCommandExecutor;
 import org.openqa.selenium.remote.server.ServicedSession;
+import org.openqa.selenium.remote.server.SessionFactory;
 import org.openqa.selenium.testing.Assertions;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class DistributorTest {
@@ -108,12 +129,62 @@ public class DistributorTest {
 
   @Test
   public void canScheduleAJobIfThereIsAFactoryThatMatches() {
-    fail("Write me");  }
+    SessionFactory factory = new FakeSessionFactory(caps -> "chrome".equals(caps.getBrowserName()));
+    Host host = Host.builder().name("localhost").add(factory).create();
+
+    Distributor distributor = new Distributor().add(host);
+
+    assertEquals(100, host.getRemainingCapacity());
+
+    SessionFactoryAndCapabilities match = distributor.match(new ChromeOptions())
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("Unable to create session"));
+
+    // We don't actually care about the session
+    ActiveSession activeSession = match.newSession(ImmutableSet.of(OSS));
+
+    assertNotNull(activeSession);
+    assertEquals(0, host.getRemainingCapacity());
+  }
 
   @Test
   public void shouldNotScheduleAJobOnASessionFactoryThatIsAlreadyBeingUsed() {
-    fail("Write me");  }
+    SessionFactory factory = new FakeSessionFactory(caps -> "chrome".equals(caps.getBrowserName()));
+    Host host = Host.builder().name("localhost").add(factory).create();
 
+    Distributor distributor = new Distributor().add(host);
+
+    SessionFactoryAndCapabilities match = distributor.match(new ChromeOptions())
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("Unable to create session"));
+
+    match.newSession(ImmutableSet.of(OSS));
+
+    assertEquals(0, host.getRemainingCapacity());
+
+    List<SessionFactoryAndCapabilities> matches =
+        distributor.match(new ChromeOptions()).collect(Collectors.toList());
+
+    assertTrue(matches.toString(), matches.isEmpty());
+  }
+
+  @Test
+  public void factoryShouldBeMarkedAvailableOnceASessionStops() {
+    SessionFactory factory = new FakeSessionFactory(caps -> "chrome".equals(caps.getBrowserName()));
+    Host host = Host.builder().name("localhost").add(factory).create();
+
+    Distributor distributor = new Distributor().add(host);
+
+    SessionFactoryAndCapabilities match = distributor.match(new ChromeOptions())
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("Unable to create session"));
+
+
+    ActiveSession session = match.newSession(ImmutableSet.of(OSS));
+    assertEquals(0, host.getRemainingCapacity());
+    session.stop();
+    assertEquals(100, host.getRemainingCapacity());
+  }
 
   @Test(expected = SessionNotCreatedException.class)
   public void shouldThrowAnExceptionIfThereAreNoHostsThatSupportTheGivenSessionType() {
@@ -152,5 +223,81 @@ public class DistributorTest {
   @Test
   public void shouldReturnAStreamWithAllMatchingSessionFactories() {
     fail("Write me");
+  }
+
+  private static class FakeSessionFactory implements SessionFactory {
+
+    private final Predicate<Capabilities> predicate;
+
+    public FakeSessionFactory(Predicate<Capabilities> predicate) {
+      this.predicate = predicate;
+    }
+
+    @Override
+    public boolean isSupporting(Capabilities capabilities) {
+      return predicate.test(capabilities);
+    }
+
+    @Override
+    public Optional<ActiveSession> apply(
+        Set<Dialect> downstreamDialects,
+        Capabilities capabilities) {
+      return Optional.of(new FakeActiveSession(downstreamDialects, capabilities));
+    }
+  }
+
+  private static class FakeActiveSession implements ActiveSession {
+
+    private static final AtomicInteger counter = new AtomicInteger(1);
+
+    private final SessionId id = new SessionId("session" + counter.getAndIncrement());
+    private final Dialect downstream;
+    private final Capabilities caps;
+
+    public FakeActiveSession(Set<Dialect> downstreams, Capabilities caps) {
+      this.downstream = Iterators.getNext(downstreams.iterator(), OSS);
+      this.caps = caps;
+    }
+
+    @Override
+    public SessionId getId() {
+      return id;
+    }
+
+    @Override
+    public Dialect getUpstreamDialect() {
+      return OSS;
+    }
+
+    @Override
+    public Dialect getDownstreamDialect() {
+      return downstream;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public Map<String, Object> getCapabilities() {
+      return (Map<String, Object>) caps.asMap();
+    }
+
+    @Override
+    public TemporaryFilesystem getFileSystem() {
+      throw new UnsupportedOperationException("getFileSystem");
+    }
+
+    @Override
+    public void stop() {
+      // no-op
+    }
+
+    @Override
+    public WebDriver getWrappedDriver() {
+      return new RemoteWebDriver(new ActiveSessionCommandExecutor(this), caps);
+    }
+
+    @Override
+    public void execute(HttpRequest req, HttpResponse resp) {
+      resp.setStatus(0);
+    }
   }
 }

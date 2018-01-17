@@ -69,6 +69,7 @@ public class Host {
   public Optional<SessionFactoryAndCapabilities> match(Capabilities caps) {
     return factories.stream()
         .filter(factory -> factory.isSupporting(caps))
+        .filter(ScheduledSessionFactory::isAvailable)
         .map(factory -> new SessionFactoryAndCapabilities(factory, caps))
         .findFirst();
   }

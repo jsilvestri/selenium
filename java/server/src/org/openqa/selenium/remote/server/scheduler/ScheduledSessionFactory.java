@@ -26,6 +26,8 @@ class ScheduledSessionFactory implements SessionFactory {
 
   @Override
   public Optional<ActiveSession> apply(Set<Dialect> downstreamDialects, Capabilities capabilities) {
+    lastUsed = System.currentTimeMillis();
+    available = false;
     return delegate.apply(downstreamDialects, capabilities);
   }
 
@@ -35,5 +37,9 @@ class ScheduledSessionFactory implements SessionFactory {
 
   public long getLastSessionCreated() {
     return lastUsed;
+  }
+
+  public void setAvailable(boolean available) {
+
   }
 }
