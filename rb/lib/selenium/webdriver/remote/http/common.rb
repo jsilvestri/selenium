@@ -78,6 +78,7 @@ module Selenium
 
             if content_type.include? CONTENT_TYPE
               raise Error::WebDriverError, "empty body: #{content_type.inspect} (#{code})\n#{body}" if body.empty?
+              raise Error::WebDriverError, "Bad response somehow: #{content_type.inspect} (#{code})\n#{JSON.parse(body)}"
               Response.new(code, JSON.parse(body))
             elsif code == 204
               Response.new(code)
